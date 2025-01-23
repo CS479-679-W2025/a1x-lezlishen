@@ -76,10 +76,13 @@ class LIFNeuron(SpikingNeuron):
         
         #=========== YOUR CODE (start) ===========
         # (a)
-        # YOUR CODE HERE
-                    
-        self.__dvdt = 0  # replace these lines
-        self.__dsdt = 0
+        # Update the slopes based on the LIF neuron equations
+        if self.__ref_remaining <= 0:  
+            self.__dvdt = (-self.__v + self.__s) / self.tau_m  
+        else:
+            self.__dvdt = 0 
+
+        self.__dsdt = (-self.__s + self.__I) / self.tau_s  # Synaptic current dynamics
         #=========== YOUR CODE (end) ===========
 
         
@@ -108,12 +111,27 @@ class LIFNeuron(SpikingNeuron):
         #=========== YOUR CODE (start) ===========
         # (b)
         # YOUR CODE HERE
-        
-        self.__v = 0.  # Replace this line
-        self.__s = 0.  # Replace this line
+        if self.__ref_remaining > 0:  
+            self.__ref_remaining -= dt
+            if self.__ref_remaining < 0:  
+                time_after_ref = -self.__ref_remaining
+                self.__ref_remaining = 0
 
-        # To add a spike at time self.t, use
-        # self.add_spike(self.t)
+                self.__v += self.__dvdt * time_after_ref
+                self.__s += self.__dsdt * time_after_ref
+        else:
+            self.__v += self.__dvdt * dt
+            self.__s += self.__dsdt * dt
+
+        if self.__v >= 1:  
+            spike_time = self.t + dt * (1 - (self.__v - self.__dvdt * dt) / (self.__v - 1))
+            self.add_spike(spike_time)
+
+            self.send_spike()
+
+            self.__v = 0
+            self.__ref_remaining = self.tau_ref
+
         #=========== YOUR CODE (end) ===========
 
         self.t += dt     # step forward in time
@@ -140,4 +158,4 @@ class LIFNeuron(SpikingNeuron):
         '''
         s = f'{self.t:6.4f}s: s={self.__s:5.3f}, v={self.__v:6.4f}, ref remaining={self.__ref_remaining:7.5f}s'
         return s
-    
+
